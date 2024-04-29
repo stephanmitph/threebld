@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { ElementRef, Injectable, NgZone, OnDestroy } from '@angular/core';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+
 
 @Injectable({ providedIn: 'root' })
 export class EngineService implements OnDestroy {
@@ -8,6 +10,7 @@ export class EngineService implements OnDestroy {
     private camera: THREE.PerspectiveCamera;
     private scene: THREE.Scene;
     private light: THREE.AmbientLight;
+    private controls: any;
 
     private cube: THREE.Mesh;
 
@@ -37,18 +40,20 @@ export class EngineService implements OnDestroy {
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         // create the scene
         this.scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 50);
+        this.camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 50);
         this.camera.position.set(20, 20, 20);
         this.camera.lookAt(new THREE.Vector3(0, 0, 0))
         this.scene.add(this.camera);
 
         // soft white light
-        this.light = new THREE.AmbientLight(0x404040);
-        this.light.position.set(20, 20, 20);
+        this.light = new THREE.AmbientLight(0xFFFFFF, Math.PI);
+        this.light.position.set(0, 0, 0);
         this.scene.add(this.light);
 
-        const axesHelper = new THREE.AxesHelper(5);
+        const axesHelper = new THREE.AxesHelper(20);
         this.scene.add(axesHelper);
+        this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+
 
         let cubeSize = 3;
         let spacing = 0.5;
@@ -58,7 +63,18 @@ export class EngineService implements OnDestroy {
             for (let y = 0; y < 3; y++) {
                 for (let z = 0; z < 3; z++) {
                     var cubeGeometry = new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize);
-                    var cube = new THREE.Mesh(cubeGeometry, new THREE.MeshMatcapMaterial({ color: new THREE.Color(0xff00ff), transparent: true, opacity: 0.5 }));
+                    var material = new THREE.MeshLambertMaterial({
+                        color: new THREE.Color(100, 0, 200),
+                        transparent: true,
+                        opacity: 0.5
+                    });
+                    // R, L, U, D, F, B 
+                    let colors = [0xFF0000, 0xFFB65C, 0xFFFFFF, 0xFDE410, 0x00FF00, 0x0000FF];
+                    let faceMaterials = colors.map(function(c) {
+                        return new THREE.MeshLambertMaterial({ color: new THREE.Color(c), flatShading: true, transparent: true, opacity: 0.9 });
+                    });
+
+                    var cube = new THREE.Mesh(cubeGeometry, faceMaterials);
                     cube.position.set((x - 1) * increment, (y - 1) * increment, (z - 1) * increment);
                     this.scene.add(cube);
                 }
@@ -89,7 +105,7 @@ export class EngineService implements OnDestroy {
         this.frameId = requestAnimationFrame(() => {
             this.render();
         });
-
+        this.controls.update();
         this.renderer.render(this.scene, this.camera);
     }
 
