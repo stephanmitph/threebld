@@ -35,25 +35,35 @@ export class EngineService implements OnDestroy {
             antialias: true // smooth edges
         });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-
         // create the scene
         this.scene = new THREE.Scene();
-
-        this.camera = new THREE.PerspectiveCamera(
-            75, window.innerWidth / window.innerHeight, 0.1, 1000
-        );
-        this.camera.position.z = 5;
+        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 50);
+        this.camera.position.set(20, 20, 20);
+        this.camera.lookAt(new THREE.Vector3(0, 0, 0))
         this.scene.add(this.camera);
 
         // soft white light
         this.light = new THREE.AmbientLight(0x404040);
-        this.light.position.z = 10;
+        this.light.position.set(20, 20, 20);
         this.scene.add(this.light);
 
-        const geometry = new THREE.BoxGeometry(1, 1, 1);
-        const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-        this.cube = new THREE.Mesh(geometry, material);
-        this.scene.add(this.cube);
+        const axesHelper = new THREE.AxesHelper(5);
+        this.scene.add(axesHelper);
+
+        let cubeSize = 3;
+        let spacing = 0.5;
+        let increment = cubeSize + spacing;
+
+        for (let x = 0; x < 3; x++) {
+            for (let y = 0; y < 3; y++) {
+                for (let z = 0; z < 3; z++) {
+                    var cubeGeometry = new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize);
+                    var cube = new THREE.Mesh(cubeGeometry, new THREE.MeshMatcapMaterial({ color: new THREE.Color(0xff00ff), transparent: true, opacity: 0.5 }));
+                    cube.position.set((x - 1) * increment, (y - 1) * increment, (z - 1) * increment);
+                    this.scene.add(cube);
+                }
+            }
+        }
 
     }
 
@@ -80,8 +90,6 @@ export class EngineService implements OnDestroy {
             this.render();
         });
 
-        this.cube.rotation.x += 0.01;
-        this.cube.rotation.y += 0.01;
         this.renderer.render(this.scene, this.camera);
     }
 

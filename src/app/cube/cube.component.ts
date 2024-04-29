@@ -18,5 +18,4 @@ export class CubeComponent implements OnInit {
         this.engServ.createScene(this.rendererCanvas);
         this.engServ.animate();
     }
-
 }
