@@ -15,11 +15,18 @@ export class EngineService implements OnDestroy {
 
     private frameId: number = null;
 
+    // Cube options
+    private cubeSize = 3;
+    private sideDepth = 0.1;
+    private padding = 0.2;
+    private spacing = 0.5;
+    private increment = this.cubeSize + this.spacing;
+    private positionOffset = 1; // for 3x3
 
     private pieces: THREE.Object3D[] = [];
 
     private moveQueue: { axis: string, direction: number }[] = []
-    private pivot = new THREE.Object3D();
+    private pivot = new THREE.Object3D()
     private activeGroup: THREE.Object3D[] = [];
     private isMoving = false;
     private moveAxis: string;
@@ -65,20 +72,19 @@ export class EngineService implements OnDestroy {
 
 
         this.createCube();
-        this.moveQueue.push({ axis: "R", direction: 1 })
+        this.moveQueue.push({ axis: "U", direction: 1 })
         this.startMove()
-        this.moveQueue.push({ axis: "R", direction: 1 })
-        setTimeout(() => this.startMove(), 2000)
+        setTimeout(() => {
+            this.moveQueue.push({ axis: "D", direction: 1 })
+            this.startMove()
+        }, 2000)
+        setTimeout(() => {
+            this.moveQueue.push({ axis: "B", direction: 1 })
+            this.startMove()
+        }, 4000)
     }
 
     public createCube(): void {
-        let cubeSize = 3;
-        let sideDepth = 0.1;
-        let padding = 0.2;
-        let spacing = 0.5;
-        let increment = cubeSize + spacing;
-        let positionOffset = 1; // for 3x3
-
         for (let x = 0; x < 3; ++x) {
             for (let y = 0; y < 3; ++y) {
                 for (let z = 0; z < 3; ++z) {
@@ -88,7 +94,7 @@ export class EngineService implements OnDestroy {
                     let faceMaterials = colors.map(function(c) {
                         return new THREE.MeshLambertMaterial({ color: new THREE.Color(c), flatShading: true, transparent: true, opacity: 0.9 });
                     });
-                    let boxGeometry = new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize);
+                    let boxGeometry = new THREE.BoxGeometry(this.cubeSize, this.cubeSize, this.cubeSize);
                     let boxMaterial = new THREE.MeshMatcapMaterial({ color: new THREE.Color(0xffffff), transparent: true, opacity: 0.5 });
                     let box = new THREE.Mesh(boxGeometry, faceMaterials);
                     piece.add(box);
@@ -116,8 +122,8 @@ export class EngineService implements OnDestroy {
                     //
                     // }, () => console.log("FONT LOAD FAILED"))
 
-                    (piece as any)["rubikPosition"] = new THREE.Vector3(x - positionOffset, y - positionOffset, z - positionOffset)
-                    piece.position.set((x - positionOffset) * (cubeSize + padding), (y - positionOffset) * (cubeSize + padding), (z - positionOffset) * (cubeSize + padding))
+                    piece.position.set((x - this.positionOffset) * (this.cubeSize + this.padding), (y - this.positionOffset) * (this.cubeSize + this.padding), (z - this.positionOffset) * (this.cubeSize + this.padding));
+                    (piece as any)["rubikPosition"] = piece.position.clone();
                     this.pieces.push(piece)
                     this.scene.add(piece)
                 }
@@ -133,22 +139,22 @@ export class EngineService implements OnDestroy {
         this.activeGroup = [];
         switch (moveAxis) {
             case "L":
-                this.pieces.forEach(p => { if (this.nearlyEqual((p as any)["rubikPosition"].x, -1)) { this.activeGroup.push(p) } })
+                this.pieces.forEach(p => { if (this.nearlyEqual((p as any)["rubikPosition"].x, -1 * (this.cubeSize + this.padding))) { this.activeGroup.push(p) } })
                 break;
             case "R":
-                this.pieces.forEach(p => { if (this.nearlyEqual((p as any)["rubikPosition"].x, 1)) { this.activeGroup.push(p) } })
+                this.pieces.forEach(p => { if (this.nearlyEqual((p as any)["rubikPosition"].x, 1 * (this.cubeSize + this.padding))) { this.activeGroup.push(p) } })
                 break;
             case "U":
-                this.pieces.forEach(p => { if (this.nearlyEqual((p as any)["rubikPosition"].y, 1)) { this.activeGroup.push(p) } })
+                this.pieces.forEach(p => { if (this.nearlyEqual((p as any)["rubikPosition"].y, 1 * (this.cubeSize + this.padding))) { this.activeGroup.push(p) } })
                 break;
             case "D":
-                this.pieces.forEach(p => { if (this.nearlyEqual((p as any)["rubikPosition"].y, -1)) { this.activeGroup.push(p) } })
+                this.pieces.forEach(p => { if (this.nearlyEqual((p as any)["rubikPosition"].y, -1 * (this.cubeSize + this.padding))) { this.activeGroup.push(p) } })
                 break;
             case "F":
-                this.pieces.forEach(p => { if (this.nearlyEqual((p as any)["rubikPosition"].z, 1)) { this.activeGroup.push(p) } })
+                this.pieces.forEach(p => { if (this.nearlyEqual((p as any)["rubikPosition"].z, 1 * (this.cubeSize + this.padding))) { this.activeGroup.push(p) } })
                 break;
             case "B":
-                this.pieces.forEach(p => { if (this.nearlyEqual((p as any)["rubikPosition"].z, -1)) { this.activeGroup.push(p) } })
+                this.pieces.forEach(p => { if (this.nearlyEqual((p as any)["rubikPosition"].z, -1 * (this.cubeSize + this.padding))) { this.activeGroup.push(p) } })
                 break;
             default:
                 console.log("Illegal move axis")
@@ -218,7 +224,8 @@ export class EngineService implements OnDestroy {
         this.pivot.clear();
         for (let piece of this.activeGroup) {
             piece.updateMatrixWorld();
-            piece.applyMatrix4(this.pivot.matrixWorld)
+            piece.applyMatrix4(this.pivot.matrixWorld);
+            (piece as any)["rubikPosition"] = piece.position.clone();
             this.pivot.remove(piece);
             this.scene.add(piece);
         }
