@@ -6,6 +6,7 @@ import { RoundedPlaneGeometry } from './RoundedPlaneGeometry.js';
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader';
 import * as TWEEN from '@tweenjs/tween.js';
+import { Subject } from 'rxjs';
 
 const MoveType = { U: "y", D: "y", R: "x", L: "x", F: "z", B: "z", M: "x", E: "y", S: "z", x: "x", y: "y", z: "z" }
 
@@ -21,7 +22,7 @@ class Algorithm {
 }
 
 @Injectable({ providedIn: 'root' })
-export class EngineService implements OnDestroy, OnChanges {
+export class CubeService implements OnDestroy {
     // Three.js options
     private canvas: HTMLCanvasElement;
     private renderer: THREE.WebGLRenderer;
@@ -49,14 +50,20 @@ export class EngineService implements OnDestroy, OnChanges {
     private currentMove: Move;
 
     // Options for from outside
-    @Input()
     public moveRotationTime = 600;
-    @Input()
     public currentAlgorithmString = "";
 
-    private currentAlgorithm: string;
+    private currentAlgorithmSource = new Subject<string>();
+    public currentAlgorithmString$ = this.currentAlgorithmSource.asObservable();
 
-    public constructor(private ngZone: NgZone) { }
+    public constructor(private ngZone: NgZone) {
+        this.currentAlgorithmString$.subscribe(alg => {
+            console.log("NEW ALG?: " + alg)
+            this.currentAlgorithmString = alg;
+            this.reset();
+            this.startExecution();
+        });
+    }
 
     ngOnDestroy(): void {
         if (this.frameId != null) {
@@ -67,19 +74,26 @@ export class EngineService implements OnDestroy, OnChanges {
         }
     }
 
-    ngOnChanges(changes: SimpleChanges) {
-        this.resetComponent();
+    public pushNewAlgorithm(alg: string) {
+        this.currentAlgorithmSource.next(alg);
     }
 
-    private resetComponent() {
+    private reset() {
+        TWEEN.removeAll();
+        this.isMoving = false;
+        this.pieces = [];
+        this.activeGroup = [];
+        this.scene.clear()
+        this.createCube();
         this.moveQueue = this.stringToMoves(this.parseAlgorithToString(this.bldNotationToAlgorithm(this.currentAlgorithmString)));
     }
 
     public stopExecution() {
         this.isMoving = false;
     }
+
     public startExecution() {
-        this.resetComponent();
+        this.reset();
         this.startMove();
     }
 
@@ -142,9 +156,6 @@ export class EngineService implements OnDestroy, OnChanges {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
 
         this.createCube();
-        this.moveQueue = this.stringToMoves(this.parseAlgorithToString(this.bldNotationToAlgorithm("[Lw': [R' D2 R, U]]")));
-        this.startMove();
-
     }
 
     public createCube(): void {
@@ -251,7 +262,7 @@ export class EngineService implements OnDestroy, OnChanges {
         }
     }
 
-    public startMove(): void {
+    private startMove(): void {
         let move = this.moveQueue.shift();
         if (move) {
             if (!this.isMoving) {
@@ -279,7 +290,7 @@ export class EngineService implements OnDestroy, OnChanges {
         }
     }
 
-    public completeMove(): void {
+    private completeMove(): void {
         this.isMoving = false;
         this.currentMove = undefined;
 

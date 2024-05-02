@@ -1,5 +1,6 @@
 export const corners = [
-    { category: "U", name: "BA", algorithm: "[Lw': [R' D2 R, U]]" },
+    { category: "U", name: "AB", algorithm: "[R' B' R:[U',R D R']]" },
+    { category: "U", name: "AD", algorithm: "[R' D R U':[R' D' R , U']]" },
     { category: "U", name: "AF", algorithm: "[F: [U2, R' D' R]]" },
     { category: "U", name: "AG", algorithm: "[R' D R, U2]" },
     { category: "U", name: "AH", algorithm: "[U': [R D' R', U2]]" },

@@ -1,1 +1,8 @@
-<p>alg-selector works!</p>
+<div class="selector-wrapper">
+    <select [(ngModel)]="selectedAlgorithm" (change)="onChanges($event)">
+        <option value="" disabled>Select an option</option>
+        <option *ngFor="let option of options" [value]="option.algorithm">{{ option.name }}</option>
+    </select>
+
+    <p>Selected option: {{ selectedAlgorithm }}</p>
+</div>

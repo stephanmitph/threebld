@@ -1,5 +1,5 @@
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
-import { EngineService } from './cube.service';
+import { CubeService } from './cube.service';
 
 @Component({
     selector: 'app-cube',
@@ -11,7 +11,7 @@ export class CubeComponent implements OnInit {
     @ViewChild('rendererCanvas', { static: true })
     public rendererCanvas: ElementRef<HTMLCanvasElement>;
 
-    public constructor(private engServ: EngineService) {
+    public constructor(private engServ: CubeService) {
     }
 
     public ngOnInit(): void {
