@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ElementRef, Injectable, NgZone, OnDestroy } from '@angular/core';
+import { ElementRef, Injectable, Input, NgZone, OnChanges, OnDestroy, SimpleChanges } from '@angular/core';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
 import { RoundedPlaneGeometry } from './RoundedPlaneGeometry.js';
@@ -12,21 +12,23 @@ const MoveType = { U: "y", D: "y", R: "x", L: "x", F: "z", B: "z", M: "x", E: "y
 class Move { moveType: string; direction: 1 | -1; wide: boolean; double: boolean } // ------------------------------------------------------------------------------------------------------------------------------------------------------
 
 class Algorithm {
-    parts: { name: string, algString: string }[]
+    name: string | null;
+    parts: { name: string, algString: string }[];
+
     constructor() {
         this.parts = []
     }
 }
 
 @Injectable({ providedIn: 'root' })
-export class EngineService implements OnDestroy {
+export class EngineService implements OnDestroy, OnChanges {
+    // Three.js options
     private canvas: HTMLCanvasElement;
     private renderer: THREE.WebGLRenderer;
     private camera: THREE.PerspectiveCamera;
     private scene: THREE.Scene;
     private light: THREE.AmbientLight;
     private controls: any;
-
     private frameId: number = null;
 
     // Cube options
@@ -38,25 +40,79 @@ export class EngineService implements OnDestroy {
     private planeDepth = 0.1;
     private piecePositionOffset = 1; // for 3x3
 
+    // Cube and move variables
     private pieces: THREE.Object3D[] = [];
-
-    private moveQueue: Move[] = []
     private pivot = new THREE.Object3D()
     private activeGroup: THREE.Object3D[] = [];
+    private moveQueue: Move[] = []
     private isMoving = false;
     private currentMove: Move;
-    private moveRotationSpeed = 0.05;
-    private moveRotationTime = 600;
+
+    // Options for from outside
+    @Input()
+    public moveRotationTime = 600;
+    @Input()
+    public currentAlgorithmString = "";
+
+    private currentAlgorithm: string;
 
     public constructor(private ngZone: NgZone) { }
 
-    public ngOnDestroy(): void {
+    ngOnDestroy(): void {
         if (this.frameId != null) {
             cancelAnimationFrame(this.frameId);
         }
         if (this.renderer != null) {
             this.renderer.dispose();
         }
+    }
+
+    ngOnChanges(changes: SimpleChanges) {
+        this.resetComponent();
+    }
+
+    private resetComponent() {
+        this.moveQueue = this.stringToMoves(this.parseAlgorithToString(this.bldNotationToAlgorithm(this.currentAlgorithmString)));
+    }
+
+    public stopExecution() {
+        this.isMoving = false;
+    }
+    public startExecution() {
+        this.resetComponent();
+        this.startMove();
+    }
+
+    public render(): void {
+        this.controls.update();
+        TWEEN.update();
+        this.renderer.render(this.scene, this.camera);
+        this.frameId = requestAnimationFrame(() => { this.render(); });
+    }
+
+    public animate(): void {
+        // We have to run this outside angular zones,
+        // because it could trigger heavy changeDetection cycles.
+        this.ngZone.runOutsideAngular(() => {
+            if (document.readyState !== 'loading') {
+                this.render();
+            } else {
+                window.addEventListener('DOMContentLoaded', () => { this.render(); });
+            }
+            window.addEventListener('resize', () => {
+                this.resize();
+            });
+        });
+    }
+
+    public resize(): void {
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+
+        this.camera.aspect = width / height;
+        this.camera.updateProjectionMatrix();
+
+        this.renderer.setSize(width, height);
     }
 
     public createScene(canvas: ElementRef<HTMLCanvasElement>): void {
@@ -89,65 +145,6 @@ export class EngineService implements OnDestroy {
         this.moveQueue = this.stringToMoves(this.parseAlgorithToString(this.bldNotationToAlgorithm("[Lw': [R' D2 R, U]]")));
         this.startMove();
 
-    }
-
-    private parseAlgorithToString(alg: Algorithm): string {
-        let setup = alg.parts.filter(p => p.name == "setup").length > 0 ? alg.parts.filter(p => p.name == "setup")[0].algString : "";
-        alg.parts = alg.parts.filter(p => p.name != "setup");
-        let ii1 = alg.parts[0].algString;
-        let ii2 = alg.parts[1].algString;
-        return setup + " " + ii1 + " " + ii2 + " " + this.reverseAlgorithm(ii1) + " " + this.reverseAlgorithm(ii2) + " " + this.reverseAlgorithm(setup);
-    }
-
-    private bldNotationToAlgorithm(bldNotationString: string): Algorithm {
-        let parsedAlg = new Algorithm();
-
-        // Losely check format
-        if (bldNotationString.substr(0, 1) != "[" || bldNotationString.slice(-1) != "]") {
-            console.error("Illegal bldNotationString")
-            return null;
-        }
-        // Remove [] 
-        bldNotationString = bldNotationString.substr(1, bldNotationString.length - 2)
-        let insertInterChange = bldNotationString.replace("[", "").replace("]", "").split(",");
-        if (bldNotationString.includes(":")) {
-            parsedAlg.parts.push({
-                name: "setup",
-                algString: bldNotationString.split(":")[0].trim()
-            });
-            insertInterChange = bldNotationString.split(":")[1].replace("[", "").replace("]", "").split(",");
-        }
-        parsedAlg.parts.push({
-            name: insertInterChange[0].length < insertInterChange[1].length ? "interchange" : "insert",
-            algString: insertInterChange[0].trim()
-        });
-        parsedAlg.parts.push({
-            name: insertInterChange[1].length < insertInterChange[0].length ? "interchange" : "insert",
-            algString: insertInterChange[1].trim()
-        });
-        return parsedAlg;
-    }
-
-    private reverseAlgorithm(alg: string): string {
-        return alg.split(" ").map(t => {
-            if (t.includes("2")) return t
-            if (t.includes("'"))
-                return t.replace("'", "");
-            return t + "'";
-        }).reverse().join(" ");
-    }
-
-    private stringToMoves(s: string): any[] {
-        return s.split(" ").map(t => this.tokenToMove(t))
-    }
-
-    private tokenToMove(token: string) {
-        return {
-            moveType: token.substr(0, 1),
-            direction: token.toLowerCase().includes("'") ? 1 : -1,
-            wide: token.toLowerCase().includes("w"),
-            double: token.toLowerCase().includes("2"),
-        }
     }
 
     public createCube(): void {
@@ -282,20 +279,6 @@ export class EngineService implements OnDestroy {
         }
     }
 
-    public doMove(): void {
-        // let xyz = MoveType[this.currentMove.moveType];
-        // let rotationAngle = this.currentMove.double ? Math.PI : Math.PI / 2;
-        // if ((this.pivot.rotation as any)[xyz] >= rotationAngle) {
-        //     (this.pivot.rotation as any)[xyz] = rotationAngle;
-        //     this.completeMove();
-        // } else if ((this.pivot.rotation as any)[xyz] <= -rotationAngle) {
-        //     (this.pivot.rotation as any)[xyz] = -rotationAngle;
-        //     this.completeMove();
-        // } else {
-        //     (this.pivot.rotation as any)[xyz] += this.currentMove.direction * this.moveRotationSpeed;
-        // }
-    }
-
     public completeMove(): void {
         this.isMoving = false;
         this.currentMove = undefined;
@@ -313,44 +296,63 @@ export class EngineService implements OnDestroy {
         this.startMove();
     }
 
-    public render(): void {
-        this.controls.update();
-        TWEEN.update();
-        // Logic
-        if (this.isMoving) {
-            this.doMove();
+
+    private parseAlgorithToString(alg: Algorithm): string {
+        let setup = alg.parts.filter(p => p.name == "setup").length > 0 ? alg.parts.filter(p => p.name == "setup")[0].algString : "";
+        alg.parts = alg.parts.filter(p => p.name != "setup");
+        let ii1 = alg.parts[0].algString;
+        let ii2 = alg.parts[1].algString;
+        return setup + " " + ii1 + " " + ii2 + " " + this.reverseAlgorithm(ii1) + " " + this.reverseAlgorithm(ii2) + " " + this.reverseAlgorithm(setup);
+    }
+
+    private bldNotationToAlgorithm(bldNotationString: string): Algorithm {
+        let parsedAlg = new Algorithm();
+
+        // Losely check format
+        if (bldNotationString.substr(0, 1) != "[" || bldNotationString.slice(-1) != "]") {
+            console.error("Illegal bldNotationString")
+            return null;
         }
-        this.renderer.render(this.scene, this.camera);
-        this.frameId = requestAnimationFrame(() => {
-            this.render();
-        });
-    }
-
-    public animate(): void {
-        // We have to run this outside angular zones,
-        // because it could trigger heavy changeDetection cycles.
-        this.ngZone.runOutsideAngular(() => {
-            if (document.readyState !== 'loading') {
-                this.render();
-            } else {
-                window.addEventListener('DOMContentLoaded', () => {
-                    this.render();
-                });
-            }
-
-            window.addEventListener('resize', () => {
-                this.resize();
+        // Remove [] 
+        bldNotationString = bldNotationString.substr(1, bldNotationString.length - 2)
+        let insertInterChange = bldNotationString.replace("[", "").replace("]", "").split(",");
+        if (bldNotationString.includes(":")) {
+            parsedAlg.parts.push({
+                name: "setup",
+                algString: bldNotationString.split(":")[0].trim()
             });
+            insertInterChange = bldNotationString.split(":")[1].replace("[", "").replace("]", "").split(",");
+        }
+        parsedAlg.parts.push({
+            name: insertInterChange[0].length < insertInterChange[1].length ? "interchange" : "insert",
+            algString: insertInterChange[0].trim()
         });
+        parsedAlg.parts.push({
+            name: insertInterChange[1].length < insertInterChange[0].length ? "interchange" : "insert",
+            algString: insertInterChange[1].trim()
+        });
+        return parsedAlg;
     }
 
-    public resize(): void {
-        const width = window.innerWidth;
-        const height = window.innerHeight;
+    private reverseAlgorithm(alg: string): string {
+        return alg.split(" ").map(t => {
+            if (t.includes("2")) return t
+            if (t.includes("'"))
+                return t.replace("'", "");
+            return t + "'";
+        }).reverse().join(" ");
+    }
 
-        this.camera.aspect = width / height;
-        this.camera.updateProjectionMatrix();
+    private stringToMoves(s: string): any[] {
+        return s.split(" ").map(t => this.tokenToMove(t))
+    }
 
-        this.renderer.setSize(width, height);
+    private tokenToMove(token: string) {
+        return {
+            moveType: token.substr(0, 1),
+            direction: token.toLowerCase().includes("'") ? 1 : -1,
+            wide: token.toLowerCase().includes("w"),
+            double: token.toLowerCase().includes("2"),
+        }
     }
 }

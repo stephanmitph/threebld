@@ -4,11 +4,13 @@ import { BrowserModule } from '@angular/platform-browser';
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { CubeComponent } from './cube/cube.component';
+import { AlgSelectorComponent } from './alg-selector/alg-selector.component';
 
 @NgModule({
   declarations: [
     AppComponent,
-    CubeComponent
+    CubeComponent,
+    AlgSelectorComponent
   ],
   imports: [
     BrowserModule,
