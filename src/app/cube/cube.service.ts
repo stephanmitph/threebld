@@ -11,6 +11,13 @@ const MoveType = { U: "y", D: "y", R: "x", L: "x", F: "z", B: "z", M: "x", E: "y
 
 class Move { moveType: string; direction: 1 | -1; wide: boolean; double: boolean } // ------------------------------------------------------------------------------------------------------------------------------------------------------
 
+class Algorithm {
+    parts: { name: string, algString: string }[]
+    constructor() {
+        this.parts = []
+    }
+}
+
 @Injectable({ providedIn: 'root' })
 export class EngineService implements OnDestroy {
     private canvas: HTMLCanvasElement;
@@ -79,10 +86,52 @@ export class EngineService implements OnDestroy {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
 
         this.createCube();
-        this.moveQueue = this.stringToAlgorithm("R' U' R U' R' U2 R")
-        console.log(this.moveQueue)
+        console.log(this.bldNotationToString("[Lw': [R' D2 R, U]]"));
+        console.log("R' U' R U' R' U2 R");
+        console.log(this.reverseAlgorithm("R' U' R U' R' U2 R"));
+        this.moveQueue = this.stringToAlgorithm("R' U' R U' R' U2 R");
+        console.log(this.moveQueue);
         this.startMove();
 
+    }
+
+    private bldNotationToString(bldNotationString: string): Algorithm {
+        let parsedAlg = new Algorithm();
+
+        // Losely check format
+        if (bldNotationString.substr(0, 1) != "[" || bldNotationString.slice(-1) != "]") {
+            console.error("Illegal bldNotationString")
+            return null;
+        }
+        // Remove [] 
+        bldNotationString = bldNotationString.substr(1, bldNotationString.length - 2)
+        console.log(bldNotationString)
+        let insertInterChange = bldNotationString.replace("[", "").replace("]", "").split(",");
+        if (bldNotationString.includes(":")) {
+            parsedAlg.parts.push({
+                name: "setup",
+                algString: bldNotationString.split(":")[0].trim()
+            });
+            insertInterChange = bldNotationString.split(":")[1].replace("[", "").replace("]", "").split(",");
+        }
+        parsedAlg.parts.push({
+            name: insertInterChange[0].length < insertInterChange[1].length ? "interchange" : "insert",
+            algString: insertInterChange[0].trim()
+        });
+        parsedAlg.parts.push({
+            name: insertInterChange[1].length < insertInterChange[0].length ? "interchange" : "insert",
+            algString: insertInterChange[1].trim()
+        });
+        return parsedAlg;
+    }
+
+    private reverseAlgorithm(alg: string): string {
+        return alg.split(" ").map(t => {
+            if (t.includes("2")) return t
+            if (t.includes("'"))
+                return t.replace("'", "");
+            return t + "'";
+        }).reverse().join(" ");
     }
 
     private stringToAlgorithm(s: string): any[] {
