@@ -70,58 +70,29 @@ export class EngineService implements OnDestroy {
         this.light.position.set(0, 0, 0);
         this.scene.add(this.light);
 
-        const axesHelper = new THREE.AxesHelper(20);
-        this.scene.add(axesHelper);
+        // const axesHelper = new THREE.AxesHelper(20);
+        // this.scene.add(axesHelper);
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
 
         this.createCube();
-        setTimeout(() => { this.moveQueue.push(this.tokenToMove("R")); this.startMove(); }, 0)
-        setTimeout(() => { this.moveQueue.push(this.tokenToMove("U")); this.startMove(); }, 1000)
-        setTimeout(() => { this.moveQueue.push(this.tokenToMove("R'")); this.startMove(); }, 2000)
-        setTimeout(() => { this.moveQueue.push(this.tokenToMove("U'")); this.startMove(); }, 3000)
+        this.moveQueue = this.stringToAlgorithm("z M E Fw R U R' U' Fw'")
+        console.log(this.moveQueue)
+        this.startMove();
+
     }
-    j
+
+    private stringToAlgorithm(s: string): any[] {
+        return s.split(" ").map(t => this.tokenToMove(t))
+    }
+
     private tokenToMove(token: string) {
-        return { axis: token.substr(0, 1), direction: token.slice(-1) == "'" ? 1 : -1 }
-    }
-
-    private isCornerPiece(cubeSize: number, x: number, y: number, z: number): boolean {
-        let c = 0;
-        if (x == 0 || x == cubeSize - 1)
-            c++
-        if (y == 0 || y == cubeSize - 1)
-            c++
-        if (z == 0 || z == cubeSize - 1)
-            c++
-        return c >= 3;
-    }
-
-
-    private isMiddlePiece(cubeSize: number, x: number, y: number, z: number): boolean {
-        let c = 0;
-        if (x == 1)
-            c++
-        if (y == 1)
-            c++
-        if (z == 1)
-            c++
-        return c == 2;
-    }
-
-    private isEdgePiece(cubeSize: number, x: number, y: number, z: number): boolean {
-        if (x == 1 && y == 1 && z == 1)
-            return false
-
-        return !this.isCornerPiece(cubeSize, x, y, z);
+        return { axis: token.substr(0, token.includes("'") ? token.length - 1 : token.length), direction: token.slice(-1) == "'" ? 1 : -1 }
     }
 
     public createCube(): void {
         for (let x = 0; x < 3; ++x) {
             for (let y = 0; y < 3; ++y) {
                 for (let z = 0; z < 3; ++z) {
-                    if (!this.isEdgePiece(this.cubeSize, x, y, z) && !this.isCornerPiece(this.cubeSize, x, y, z))
-                        continue;
-
                     let piece = new THREE.Group();
 
                     let boxGeometry = new RoundedBoxGeometry(this.pieceSize, this.pieceSize, this.pieceSize, 3, 0.2);
@@ -139,6 +110,11 @@ export class EngineService implements OnDestroy {
                     if (y == this.cubeSize - 1) planePositions.push(3);
                     if (z == 0) planePositions.push(4);
                     if (z == this.cubeSize - 1) planePositions.push(5);
+
+
+                    if (planePositions.length == 0) {
+                        continue;
+                    }
 
                     const color = [0xff8c0a, 0xef3923, 0xffef48, 0xfff7ff, 0x41aac8, 0x82ca38]
                     for (let planePosition of planePositions) {
@@ -174,7 +150,13 @@ export class EngineService implements OnDestroy {
 
     public setActiveGroup(moveAxis: string): void {
         this.activeGroup = [];
-        switch (moveAxis) {
+
+        switch (moveAxis.substr(0, 1)) {
+            case "x":
+            case "y":
+            case "z":
+                this.pieces.forEach(p => this.activeGroup.push(p))
+                return;
             case "L":
                 this.pieces.forEach(p => { if (this.nearlyEqual((p as any)["rubikPosition"].x, -1 * (this.pieceSize + this.piecePadding))) { this.activeGroup.push(p) } })
                 break;
@@ -193,15 +175,52 @@ export class EngineService implements OnDestroy {
             case "B":
                 this.pieces.forEach(p => { if (this.nearlyEqual((p as any)["rubikPosition"].z, -1 * (this.pieceSize + this.piecePadding))) { this.activeGroup.push(p) } })
                 break;
-            default:
-                console.log("Illegal move axis")
+            case "M":
+                this.pieces.forEach(p => { if (this.nearlyEqual((p as any)["rubikPosition"].x, 0)) { this.activeGroup.push(p) } })
                 break;
+            case "E":
+                this.pieces.forEach(p => { if (this.nearlyEqual((p as any)["rubikPosition"].y, 0)) { this.activeGroup.push(p) } })
+                break;
+            case "S":
+                this.pieces.forEach(p => { if (this.nearlyEqual((p as any)["rubikPosition"].z, 0)) { this.activeGroup.push(p) } })
+                break;
+            default:
+                break;
+        }
+        if (moveAxis.includes("w")) {
+            if (moveAxis.substr(0, 1) == "R" || moveAxis.substr(0, 1) == "L") { this.pieces.forEach(p => { if (this.nearlyEqual((p as any)["rubikPosition"].x, 0)) { this.activeGroup.push(p) } }) }
+            if (moveAxis.substr(0, 1) == "U" || moveAxis.substr(0, 1) == "D") { this.pieces.forEach(p => { if (this.nearlyEqual((p as any)["rubikPosition"].y, 0)) { this.activeGroup.push(p) } }) }
+            if (moveAxis.substr(0, 1) == "F" || moveAxis.substr(0, 1) == "B") { this.pieces.forEach(p => { if (this.nearlyEqual((p as any)["rubikPosition"].z, 0)) { this.activeGroup.push(p) } }) }
         }
 
     }
 
+    public getAxisByString(s: string): string {
+        switch (s) {
+            case "F":
+            case "B":
+            case "S":
+                return "z";
+            case "U":
+            case "D":
+            case "E":
+                return "y";
+            case "L":
+            case "R":
+            case "M":
+                return "x";
+            case "x":
+            case "y":
+            case "z":
+                return s;
+            default:
+                console.error("Illegal move")
+                return "x";
+        }
+    }
+
     public startMove(): void {
-        let move = this.moveQueue.pop();
+        let move = this.moveQueue.shift();
         if (move) {
             if (!this.isMoving) {
                 console.log(move)
@@ -210,7 +229,6 @@ export class EngineService implements OnDestroy {
                 this.moveDirection = move.direction;
 
                 this.setActiveGroup(this.moveAxis);
-                console.log(this.pieces)
                 this.pivot.rotation.set(0, 0, 0);
                 this.pivot.updateMatrixWorld();
                 this.scene.add(this.pivot);
@@ -223,24 +241,8 @@ export class EngineService implements OnDestroy {
         }
     }
 
-    public getAxisByString(s: string): string {
-        switch (s) {
-            case "F":
-            case "B":
-                return "z";
-            case "U":
-            case "D":
-                return "y";
-            case "L":
-            case "R":
-                return "x";
-            default:
-                console.error("Illegal move")
-                return "x";
-        }
-    }
     public doMove(): void {
-        let xyz = this.getAxisByString(this.moveAxis)
+        let xyz = this.getAxisByString(this.moveAxis.substr(0, 1))
         if ((this.pivot.rotation as any)[xyz] >= Math.PI / 2) {
             (this.pivot.rotation as any)[xyz] = Math.PI / 2;
             this.completeMove();
@@ -266,6 +268,7 @@ export class EngineService implements OnDestroy {
             this.pivot.remove(piece);
             this.scene.add(piece);
         }
+        this.startMove();
     }
 
     public render(): void {
