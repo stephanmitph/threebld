@@ -86,16 +86,20 @@ export class EngineService implements OnDestroy {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
 
         this.createCube();
-        console.log(this.bldNotationToString("[Lw': [R' D2 R, U]]"));
-        console.log("R' U' R U' R' U2 R");
-        console.log(this.reverseAlgorithm("R' U' R U' R' U2 R"));
-        this.moveQueue = this.stringToAlgorithm("R' U' R U' R' U2 R");
-        console.log(this.moveQueue);
+        this.moveQueue = this.stringToMoves(this.parseAlgorithToString(this.bldNotationToAlgorithm("[Lw': [R' D2 R, U]]")));
         this.startMove();
 
     }
 
-    private bldNotationToString(bldNotationString: string): Algorithm {
+    private parseAlgorithToString(alg: Algorithm): string {
+        let setup = alg.parts.filter(p => p.name == "setup").length > 0 ? alg.parts.filter(p => p.name == "setup")[0].algString : "";
+        alg.parts = alg.parts.filter(p => p.name != "setup");
+        let ii1 = alg.parts[0].algString;
+        let ii2 = alg.parts[1].algString;
+        return setup + " " + ii1 + " " + ii2 + " " + this.reverseAlgorithm(ii1) + " " + this.reverseAlgorithm(ii2) + " " + this.reverseAlgorithm(setup);
+    }
+
+    private bldNotationToAlgorithm(bldNotationString: string): Algorithm {
         let parsedAlg = new Algorithm();
 
         // Losely check format
@@ -105,7 +109,6 @@ export class EngineService implements OnDestroy {
         }
         // Remove [] 
         bldNotationString = bldNotationString.substr(1, bldNotationString.length - 2)
-        console.log(bldNotationString)
         let insertInterChange = bldNotationString.replace("[", "").replace("]", "").split(",");
         if (bldNotationString.includes(":")) {
             parsedAlg.parts.push({
@@ -134,7 +137,7 @@ export class EngineService implements OnDestroy {
         }).reverse().join(" ");
     }
 
-    private stringToAlgorithm(s: string): any[] {
+    private stringToMoves(s: string): any[] {
         return s.split(" ").map(t => this.tokenToMove(t))
     }
 
