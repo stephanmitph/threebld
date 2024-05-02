@@ -5,7 +5,11 @@ import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
 import { RoundedPlaneGeometry } from './RoundedPlaneGeometry.js';
 import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader';
+import * as TWEEN from '@tweenjs/tween.js';
 
+const MoveType = { U: "y", D: "y", R: "x", L: "x", F: "z", B: "z", M: "x", E: "y", S: "z", x: "x", y: "y", z: "z" }
+
+class Move { moveType: string; direction: 1 | -1; wide: boolean; double: boolean } // ------------------------------------------------------------------------------------------------------------------------------------------------------
 
 @Injectable({ providedIn: 'root' })
 export class EngineService implements OnDestroy {
@@ -29,13 +33,13 @@ export class EngineService implements OnDestroy {
 
     private pieces: THREE.Object3D[] = [];
 
-    private moveQueue: { axis: string, direction: number }[] = []
+    private moveQueue: Move[] = []
     private pivot = new THREE.Object3D()
     private activeGroup: THREE.Object3D[] = [];
     private isMoving = false;
-    private moveAxis: string;
+    private currentMove: Move;
     private moveRotationSpeed = 0.05;
-    private moveDirection: number;
+    private moveRotationTime = 600;
 
     public constructor(private ngZone: NgZone) { }
 
@@ -75,7 +79,7 @@ export class EngineService implements OnDestroy {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
 
         this.createCube();
-        this.moveQueue = this.stringToAlgorithm("z M E Fw R U R' U' Fw'")
+        this.moveQueue = this.stringToAlgorithm("R' U' R U' R' U2 R")
         console.log(this.moveQueue)
         this.startMove();
 
@@ -86,10 +90,16 @@ export class EngineService implements OnDestroy {
     }
 
     private tokenToMove(token: string) {
-        return { axis: token.substr(0, token.includes("'") ? token.length - 1 : token.length), direction: token.slice(-1) == "'" ? 1 : -1 }
+        return {
+            moveType: token.substr(0, 1),
+            direction: token.toLowerCase().includes("'") ? 1 : -1,
+            wide: token.toLowerCase().includes("w"),
+            double: token.toLowerCase().includes("2"),
+        }
     }
 
     public createCube(): void {
+        // Create pieces
         for (let x = 0; x < 3; ++x) {
             for (let y = 0; y < 3; ++y) {
                 for (let z = 0; z < 3; ++z) {
@@ -111,10 +121,8 @@ export class EngineService implements OnDestroy {
                     if (z == 0) planePositions.push(4);
                     if (z == this.cubeSize - 1) planePositions.push(5);
 
-
-                    if (planePositions.length == 0) {
+                    if (planePositions.length == 0)
                         continue;
-                    }
 
                     const color = [0xff8c0a, 0xef3923, 0xffef48, 0xfff7ff, 0x41aac8, 0x82ca38]
                     for (let planePosition of planePositions) {
@@ -148,10 +156,9 @@ export class EngineService implements OnDestroy {
         return Math.abs(a - b) <= d;
     }
 
-    public setActiveGroup(moveAxis: string): void {
+    public setActiveGroup(move: Move): void {
         this.activeGroup = [];
-
-        switch (moveAxis.substr(0, 1)) {
+        switch (move.moveType) {
             case "x":
             case "y":
             case "z":
@@ -187,35 +194,11 @@ export class EngineService implements OnDestroy {
             default:
                 break;
         }
-        if (moveAxis.includes("w")) {
-            if (moveAxis.substr(0, 1) == "R" || moveAxis.substr(0, 1) == "L") { this.pieces.forEach(p => { if (this.nearlyEqual((p as any)["rubikPosition"].x, 0)) { this.activeGroup.push(p) } }) }
-            if (moveAxis.substr(0, 1) == "U" || moveAxis.substr(0, 1) == "D") { this.pieces.forEach(p => { if (this.nearlyEqual((p as any)["rubikPosition"].y, 0)) { this.activeGroup.push(p) } }) }
-            if (moveAxis.substr(0, 1) == "F" || moveAxis.substr(0, 1) == "B") { this.pieces.forEach(p => { if (this.nearlyEqual((p as any)["rubikPosition"].z, 0)) { this.activeGroup.push(p) } }) }
-        }
 
-    }
-
-    public getAxisByString(s: string): string {
-        switch (s) {
-            case "F":
-            case "B":
-            case "S":
-                return "z";
-            case "U":
-            case "D":
-            case "E":
-                return "y";
-            case "L":
-            case "R":
-            case "M":
-                return "x";
-            case "x":
-            case "y":
-            case "z":
-                return s;
-            default:
-                console.error("Illegal move")
-                return "x";
+        if (move.wide) {
+            if (move.moveType == "U" || move.moveType == "D") { this.pieces.forEach(p => { if (this.nearlyEqual((p as any)["rubikPosition"].y, 0)) { this.activeGroup.push(p) } }) }
+            if (move.moveType == "R" || move.moveType == "L") { this.pieces.forEach(p => { if (this.nearlyEqual((p as any)["rubikPosition"].x, 0)) { this.activeGroup.push(p) } }) }
+            if (move.moveType == "F" || move.moveType == "B") { this.pieces.forEach(p => { if (this.nearlyEqual((p as any)["rubikPosition"].z, 0)) { this.activeGroup.push(p) } }) }
         }
     }
 
@@ -223,12 +206,10 @@ export class EngineService implements OnDestroy {
         let move = this.moveQueue.shift();
         if (move) {
             if (!this.isMoving) {
-                console.log(move)
                 this.isMoving = true;
-                this.moveAxis = move.axis;
-                this.moveDirection = move.direction;
+                this.currentMove = move;
 
-                this.setActiveGroup(this.moveAxis);
+                this.setActiveGroup(this.currentMove);
                 this.pivot.rotation.set(0, 0, 0);
                 this.pivot.updateMatrixWorld();
                 this.scene.add(this.pivot);
@@ -237,26 +218,35 @@ export class EngineService implements OnDestroy {
                     this.scene.remove(piece)
                     this.pivot.add(piece);
                 }
+                let xyz = MoveType[this.currentMove.moveType];
+                let rotationAngle = (this.currentMove.double ? Math.PI : Math.PI / 2) * this.currentMove.direction;
+                let target = {}; target[xyz] = rotationAngle;
+                new TWEEN.Tween(this.pivot.rotation).to(target, this.moveRotationTime)
+                    .easing(TWEEN.Easing.Quadratic.InOut)
+                    .onComplete(() => this.completeMove())
+                    .start();
+
             }
         }
     }
 
     public doMove(): void {
-        let xyz = this.getAxisByString(this.moveAxis.substr(0, 1))
-        if ((this.pivot.rotation as any)[xyz] >= Math.PI / 2) {
-            (this.pivot.rotation as any)[xyz] = Math.PI / 2;
-            this.completeMove();
-        } else if ((this.pivot.rotation as any)[xyz] <= Math.PI / -2) {
-            (this.pivot.rotation as any)[xyz] = Math.PI / -2;
-            this.completeMove();
-        } else {
-            (this.pivot.rotation as any)[xyz] += this.moveDirection * this.moveRotationSpeed;
-        }
+        // let xyz = MoveType[this.currentMove.moveType];
+        // let rotationAngle = this.currentMove.double ? Math.PI : Math.PI / 2;
+        // if ((this.pivot.rotation as any)[xyz] >= rotationAngle) {
+        //     (this.pivot.rotation as any)[xyz] = rotationAngle;
+        //     this.completeMove();
+        // } else if ((this.pivot.rotation as any)[xyz] <= -rotationAngle) {
+        //     (this.pivot.rotation as any)[xyz] = -rotationAngle;
+        //     this.completeMove();
+        // } else {
+        //     (this.pivot.rotation as any)[xyz] += this.currentMove.direction * this.moveRotationSpeed;
+        // }
     }
 
     public completeMove(): void {
         this.isMoving = false;
-        this.moveAxis, this.moveDirection = undefined;
+        this.currentMove = undefined;
 
         this.pivot.updateMatrixWorld(true);
         this.scene.remove(this.pivot);
@@ -273,6 +263,7 @@ export class EngineService implements OnDestroy {
 
     public render(): void {
         this.controls.update();
+        TWEEN.update();
         // Logic
         if (this.isMoving) {
             this.doMove();
