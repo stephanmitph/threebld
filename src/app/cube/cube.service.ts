@@ -41,13 +41,14 @@ export class CubeService implements OnDestroy {
     private planeDepth = 0.1;
     private piecePositionOffset = 1; // for 3x3
 
-    // Cube and move variables
+    // Cube, move variables and animation
     private pieces: THREE.Object3D[] = [];
     private pivot = new THREE.Object3D()
     private activeGroup: THREE.Object3D[] = [];
     private moveQueue: Move[] = []
     private isMoving = false;
     private currentMove: Move;
+    private currentTween: TWEEN.Tween<any>;
 
     // Options for from outside
     public moveRotationTime = 600;
@@ -79,11 +80,21 @@ export class CubeService implements OnDestroy {
     }
 
     private reset() {
+        this.currentTween?.stop();
         TWEEN.removeAll();
+
         this.isMoving = false;
-        this.pieces = [];
         this.activeGroup = [];
-        this.scene.clear()
+        this.scene.remove(this.pivot);
+        this.pivot.clear();
+
+        for (let piece of this.pieces) {
+            piece.position.setFromEuler((piece as any)["initialPosition"]);
+            piece.updateMatrixWorld()
+            piece.applyMatrix4(this.pivot.matrixWorld);
+            (piece as any)["rubikPosition"] = piece.position.clone();
+        }
+
         this.createCube();
         this.moveQueue = this.stringToMoves(this.parseAlgorithToString(this.bldNotationToAlgorithm(this.currentAlgorithmString)));
     }
@@ -205,6 +216,8 @@ export class CubeService implements OnDestroy {
 
                     piece.position.set((x - this.piecePositionOffset) * (this.pieceSize + this.piecePadding), (y - this.piecePositionOffset) * (this.pieceSize + this.piecePadding), (z - this.piecePositionOffset) * (this.pieceSize + this.piecePadding));
                     (piece as any)["rubikPosition"] = piece.position.clone();
+                    (piece as any)["initialPosition"] = piece.position.clone();
+                    (piece as any)["initialRotation"] = piece.rotation.clone();
                     this.pieces.push(piece)
                     this.scene.add(piece)
                 }
@@ -281,7 +294,7 @@ export class CubeService implements OnDestroy {
                 let xyz = MoveType[this.currentMove.moveType];
                 let rotationAngle = (this.currentMove.double ? Math.PI : Math.PI / 2) * this.currentMove.direction;
                 let target = {}; target[xyz] = rotationAngle;
-                new TWEEN.Tween(this.pivot.rotation).to(target, this.moveRotationTime)
+                this.currentTween = new TWEEN.Tween(this.pivot.rotation).to(target, this.moveRotationTime)
                     .easing(TWEEN.Easing.Quadratic.InOut)
                     .onComplete(() => this.completeMove())
                     .start();
