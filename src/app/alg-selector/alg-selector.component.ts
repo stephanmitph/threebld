@@ -7,21 +7,18 @@ import { CubeService } from 'app/cube/cube.service';
     templateUrl: './alg-selector.component.html',
     styleUrls: ['./alg-selector.component.scss']
 })
-export class AlgSelectorComponent implements OnInit {
-
+export class AlgSelectorComponent {
 
     constructor(private cubeService: CubeService) { }
 
     onChanges(event: any): void {
-        this.cubeService.pushNewAlgorithm(this.selectedAlgorithm);
+        let alg = this.options.filter(c => c.name == this.selectedAlgorithmName)[0]
+        console.log({ alg })
+        this.cubeService.pushNewAlgorithm(this.cubeService.bldNotationToAlgorithm(alg.name, alg.algorithm));
     }
 
     public options = corners;
 
-    public selectedAlgorithm: string = corners[0].algorithm;
-
-
-    ngOnInit(): void {
-    }
+    public selectedAlgorithmName: string = corners[0].name;
 
 }

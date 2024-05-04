@@ -7,19 +7,9 @@ import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry';
 import { FontLoader } from 'three/examples/jsm/loaders/FontLoader';
 import * as TWEEN from '@tweenjs/tween.js';
 import { Subject } from 'rxjs';
-
-const MoveType = { U: "y", D: "y", R: "x", L: "x", F: "z", B: "z", M: "x", E: "y", S: "z", x: "x", y: "y", z: "z" }
-
-class Move { moveType: string; direction: 1 | -1; wide: boolean; double: boolean } // ------------------------------------------------------------------------------------------------------------------------------------------------------
-
-class Algorithm {
-    name: string | null;
-    parts: { name: string, algString: string }[];
-
-    constructor() {
-        this.parts = []
-    }
-}
+import { BoxGeometry } from 'three';
+import { letterscheme, letterscheme_buffer } from './letterscheme';
+import { Move, Algorithm, MoveType, MoveDirectionCorrection } from 'app/util';
 
 @Injectable({ providedIn: 'root' })
 export class CubeService implements OnDestroy {
@@ -52,15 +42,15 @@ export class CubeService implements OnDestroy {
 
     // Options for from outside
     public moveRotationTime = 600;
-    public currentAlgorithmString = "";
+    public focusMode = true;
+    public currentAlgorithm: Algorithm;
 
-    private currentAlgorithmSource = new Subject<string>();
+    private currentAlgorithmSource = new Subject<Algorithm>();
     public currentAlgorithmString$ = this.currentAlgorithmSource.asObservable();
 
     public constructor(private ngZone: NgZone) {
         this.currentAlgorithmString$.subscribe(alg => {
-            console.log("NEW ALG?: " + alg)
-            this.currentAlgorithmString = alg;
+            this.currentAlgorithm = alg;
             this.reset();
             this.startExecution();
         });
@@ -75,7 +65,7 @@ export class CubeService implements OnDestroy {
         }
     }
 
-    public pushNewAlgorithm(alg: string) {
+    public pushNewAlgorithm(alg: Algorithm) {
         this.currentAlgorithmSource.next(alg);
     }
 
@@ -96,7 +86,7 @@ export class CubeService implements OnDestroy {
         }
 
         this.createCube();
-        this.moveQueue = this.stringToMoves(this.parseAlgorithToString(this.bldNotationToAlgorithm(this.currentAlgorithmString)));
+        this.moveQueue = this.stringToMoves(this.parseAlgorithToString(this.currentAlgorithm));
     }
 
     public stopExecution() {
@@ -167,6 +157,9 @@ export class CubeService implements OnDestroy {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
 
         this.createCube();
+        this.moveQueue.push({ moveType: "z", direction: 1, wide: false, double: false })
+        // this.moveQueue.push({ moveType: "R", direction: 1, wide: false, double: false })
+        this.startMove()
     }
 
     public createCube(): void {
@@ -177,7 +170,13 @@ export class CubeService implements OnDestroy {
                     let piece = new THREE.Group();
 
                     let boxGeometry = new RoundedBoxGeometry(this.pieceSize, this.pieceSize, this.pieceSize, 3, 0.2);
-                    let boxMaterial = new THREE.MeshMatcapMaterial({ color: new THREE.Color(0x333333), transparent: false, opacity: 0.6 });
+                    let boxMaterial = new THREE.MeshMatcapMaterial({ color: new THREE.Color(0x333333), transparent: false, opacity: 0.12 });
+
+                    if (this.focusMode) {
+                        boxGeometry = new BoxGeometry(this.pieceSize, this.pieceSize, this.pieceSize, 3, 1);
+                        boxMaterial = new THREE.MeshMatcapMaterial({ color: new THREE.Color(0xDDDDDD), transparent: true, opacity: 0.12 });
+                    }
+
                     let box = new THREE.Mesh(boxGeometry, boxMaterial);
                     piece.add(box);
 
@@ -192,12 +191,26 @@ export class CubeService implements OnDestroy {
                     if (z == 0) planePositions.push(4);
                     if (z == this.cubeSize - 1) planePositions.push(5);
 
-                    if (planePositions.length == 0)
+                    if (planePositions.length == 0) // Skip middle piece
                         continue;
 
                     const color = [0xff8c0a, 0xef3923, 0xffef48, 0xfff7ff, 0x41aac8, 0x82ca38]
                     for (let planePosition of planePositions) {
+                        let isFocusLetter = false;
                         let planeMaterial = new THREE.MeshMatcapMaterial({ color: new THREE.Color(color[planePosition]) });
+
+                        if (this.focusMode && this.currentAlgorithm !== undefined) {
+                            let focusLetters = letterscheme.filter(l => l.letter == this.currentAlgorithm.name.substr(0, 1)
+                                || l.letter == this.currentAlgorithm.name.substr(1, 2)
+                                || l.letter == letterscheme_buffer)
+                            for (let l of focusLetters) {
+                                if (l.x == x && l.y == y && l.z == z && l.sidePos == planePosition) {
+                                    planeMaterial = new THREE.MeshMatcapMaterial({ color: new THREE.Color(l.letter == letterscheme_buffer ? 0x00FF00 : 0xFF00FF) });
+                                    isFocusLetter = true;
+                                }
+                            }
+                        }
+
                         let plane = new THREE.Mesh(planeGeometry, planeMaterial);
 
                         plane.position.set(
@@ -211,7 +224,10 @@ export class CubeService implements OnDestroy {
                             Math.PI / 2 * [- 1, 1, 0, 0, 2, 0][planePosition],
                             0
                         );
-                        piece.add(plane);
+
+                        if (!this.focusMode || this.focusMode && isFocusLetter)
+                            piece.add(plane);
+
                     }
 
                     piece.position.set((x - this.piecePositionOffset) * (this.pieceSize + this.piecePadding), (y - this.piecePositionOffset) * (this.pieceSize + this.piecePadding), (z - this.piecePositionOffset) * (this.pieceSize + this.piecePadding));
@@ -278,6 +294,7 @@ export class CubeService implements OnDestroy {
     private startMove(): void {
         let move = this.moveQueue.shift();
         if (move) {
+            console.log({ move })
             if (!this.isMoving) {
                 this.isMoving = true;
                 this.currentMove = move;
@@ -291,8 +308,9 @@ export class CubeService implements OnDestroy {
                     this.scene.remove(piece)
                     this.pivot.add(piece);
                 }
+
                 let xyz = MoveType[this.currentMove.moveType];
-                let rotationAngle = (this.currentMove.double ? Math.PI : Math.PI / 2) * this.currentMove.direction;
+                let rotationAngle = (this.currentMove.double ? Math.PI : Math.PI / 2) * this.currentMove.direction * MoveDirectionCorrection[this.currentMove.moveType];
                 let target = {}; target[xyz] = rotationAngle;
                 this.currentTween = new TWEEN.Tween(this.pivot.rotation).to(target, this.moveRotationTime)
                     .easing(TWEEN.Easing.Quadratic.InOut)
@@ -321,17 +339,16 @@ export class CubeService implements OnDestroy {
     }
 
 
-    private parseAlgorithToString(alg: Algorithm): string {
+    public parseAlgorithToString(alg: Algorithm): string {
         let setup = alg.parts.filter(p => p.name == "setup").length > 0 ? alg.parts.filter(p => p.name == "setup")[0].algString : "";
-        alg.parts = alg.parts.filter(p => p.name != "setup");
-        let ii1 = alg.parts[0].algString;
-        let ii2 = alg.parts[1].algString;
+        let ii1 = alg.parts.filter(p => p.name != "setup")[0].algString;
+        let ii2 = alg.parts.filter(p => p.name != "setup")[1].algString;
         return setup + " " + ii1 + " " + ii2 + " " + this.reverseAlgorithm(ii1) + " " + this.reverseAlgorithm(ii2) + " " + this.reverseAlgorithm(setup);
     }
 
-    private bldNotationToAlgorithm(bldNotationString: string): Algorithm {
+    public bldNotationToAlgorithm(name: string, bldNotationString: string): Algorithm {
         let parsedAlg = new Algorithm();
-
+        parsedAlg.name = name;
         // Losely check format
         if (bldNotationString.substr(0, 1) != "[" || bldNotationString.slice(-1) != "]") {
             console.error("Illegal bldNotationString")
@@ -358,7 +375,7 @@ export class CubeService implements OnDestroy {
         return parsedAlg;
     }
 
-    private reverseAlgorithm(alg: string): string {
+    public reverseAlgorithm(alg: string): string {
         return alg.split(" ").map(t => {
             if (t.includes("2")) return t
             if (t.includes("'"))
@@ -367,14 +384,15 @@ export class CubeService implements OnDestroy {
         }).reverse().join(" ");
     }
 
-    private stringToMoves(s: string): any[] {
+    public stringToMoves(s: string): any[] {
         return s.split(" ").map(t => this.tokenToMove(t))
     }
 
     private tokenToMove(token: string) {
+        console.log(token)
         return {
             moveType: token.substr(0, 1),
-            direction: token.toLowerCase().includes("'") ? 1 : -1,
+            direction: token.includes("'") ? -1 : 1,
             wide: token.toLowerCase().includes("w"),
             double: token.toLowerCase().includes("2"),
         }
