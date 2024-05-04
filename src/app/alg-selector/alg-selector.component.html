@@ -1,8 +1,10 @@
+<div class="algorithm-wrapper">
+    <p class="algorithm">{{ selectedAlgorithmString }}</p>
+</div>
 <div class="selector-wrapper">
     <select [(ngModel)]="selectedAlgorithmName" (change)="onChanges($event)">
         <option value="" disabled>Select an option</option>
         <option *ngFor="let option of options" [value]="option.name">{{ option.name }}</option>
     </select>
-
-    <p>Selected option: {{ selectedAlgorithmName }}</p>
 </div>
+<input type="checkbox" [(ngModel)]="isFocusMode" (change)="onFocusModeChnage($event)"> Focus Mode

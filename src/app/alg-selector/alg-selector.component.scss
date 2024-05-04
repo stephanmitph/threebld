@@ -1,6 +1,28 @@
+.algorithm-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    font-size: 2em;
+}
+
 .selector-wrapper {
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
+}
+
+.selector-wrapper select {
+    background: white;
+    border: 1px solid #AAAAAA;
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 12px;
+    max-width: 200px;
+    font-size: 18px;
+}
+
+.select:focus {
+    color: black;
 }

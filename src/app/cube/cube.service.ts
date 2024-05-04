@@ -42,15 +42,23 @@ export class CubeService implements OnDestroy {
 
     // Options for from outside
     public moveRotationTime = 600;
-    public focusMode = true;
+    public focusMode = false;
     public currentAlgorithm: Algorithm;
 
     private currentAlgorithmSource = new Subject<Algorithm>();
     public currentAlgorithmString$ = this.currentAlgorithmSource.asObservable();
 
+    private focusModeSource = new Subject<boolean>();
+    public focusMode$ = this.focusModeSource.asObservable();
+
     public constructor(private ngZone: NgZone) {
         this.currentAlgorithmString$.subscribe(alg => {
             this.currentAlgorithm = alg;
+            this.reset();
+            this.startExecution();
+        });
+        this.focusMode$.subscribe(b => {
+            this.focusMode = b;
             this.reset();
             this.startExecution();
         });
@@ -67,6 +75,10 @@ export class CubeService implements OnDestroy {
 
     public pushNewAlgorithm(alg: Algorithm) {
         this.currentAlgorithmSource.next(alg);
+    }
+
+    public updateFocusMode(b: boolean) {
+        this.focusModeSource.next(b);
     }
 
     private reset() {
