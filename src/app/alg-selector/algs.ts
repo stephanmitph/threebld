@@ -1,4 +1,6 @@
-export const corners = [
+import { Algorithm } from "app/util"
+
+const cornersRaw = [
     { category: "U", name: "AB", algorithm: "[R' B' R:[U',R D R']]" },
     { category: "U", name: "AD", algorithm: "[R' D R U':[R' D' R , U']]" },
     { category: "U", name: "AF", algorithm: "[F: [U2, R' D' R]]" },
@@ -197,6 +199,4 @@ export const corners = [
     { category: "D", name: "WX", algorithm: "[z: [R U2 R', D2]]" },
 ]
 
-export const edges = [
-
-]
+export const corners: Algorithm[] = cornersRaw.map(c => new Algorithm(c.name, c.algorithm, c.category, true));

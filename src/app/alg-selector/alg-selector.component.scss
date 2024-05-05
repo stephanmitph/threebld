@@ -1,5 +1,6 @@
 .algorithm-wrapper {
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
 
@@ -25,4 +26,14 @@
 
 .select:focus {
     color: black;
+}
+
+.input-group {
+    display: flex;
+    align-items: stretch;
+
+    button {
+        border: none;
+        width: 40px;
+    }
 }

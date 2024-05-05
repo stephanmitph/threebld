@@ -1,5 +1,6 @@
-import { Component, OnChanges, OnInit, SimpleChanges } from '@angular/core';
+import { Component, NgZone, OnInit } from '@angular/core';
 import { CubeService } from 'app/cube/cube.service';
+import { Algorithm, Move } from 'app/util';
 import { corners } from './algs';
 
 @Component({
@@ -9,26 +10,49 @@ import { corners } from './algs';
 })
 export class AlgSelectorComponent implements OnInit {
 
-    public options = corners;
+    public options: Algorithm[] = corners;
 
     public selectedAlgorithmName: string = corners[0].name;
-    public selectedAlgorithmString: string = corners[0].algorithm;
+    public selectedAlgorithmString: string = corners[0].string;
+    public currentPart: string;
 
     public isFocusMode: boolean = false;
+    public isExecuting: boolean = false;
 
-    constructor(private cubeService: CubeService) { }
+    constructor(private cubeService: CubeService, private ngZone: NgZone) { }
 
     ngOnInit(): void {
-        this.onChanges(null);
+        this.onAlgorithmChange(null);
+        this.cubeService.currentMove$.subscribe((currentMove: Move) => {
+            console.log(currentMove)
+            this.ngZone.run(() => {
+                this.currentPart = currentMove.partName;
+            });
+        })
     }
 
-    onChanges(event: any): void {
+    onAlgorithmChange(event: any): void {
         let alg = this.options.filter(c => c.name == this.selectedAlgorithmName)[0]
-        this.selectedAlgorithmString = alg.algorithm;
-        this.cubeService.pushNewAlgorithm(this.cubeService.bldNotationToAlgorithm(alg.name, alg.algorithm));
+        this.selectedAlgorithmString = alg.string;
+        this.cubeService.setAlgorithm(alg);
     }
 
-    onFocusModeChnage(event: any): void {
-        this.cubeService.updateFocusMode(this.isFocusMode);
+    toggleFocusMode(): void {
+        this.isFocusMode = !this.isFocusMode;
+        this.cubeService.setFocusMode(this.isFocusMode);
+    }
+
+    toggleExecution() {
+        this.isExecuting = !this.isExecuting;
+        if (this.isExecuting) {
+            this.cubeService.continueExecution();
+        } else {
+            this.cubeService.stopExecution();
+        }
+    }
+
+    reset() {
+        this.isExecuting = false;
+        this.cubeService.reset();
     }
 }

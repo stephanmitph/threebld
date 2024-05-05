@@ -6,6 +6,7 @@ import { AppComponent } from './app.component';
 import { CubeComponent } from './cube/cube.component';
 import { AlgSelectorComponent } from './alg-selector/alg-selector.component';
 import { FormsModule } from '@angular/forms';
+import { CommonModule } from '@angular/common';
 
 
 @NgModule({
@@ -17,7 +18,8 @@ import { FormsModule } from '@angular/forms';
     imports: [
         BrowserModule,
         AppRoutingModule,
-        FormsModule
+        FormsModule,
+        CommonModule
     ],
     providers: [],
     bootstrap: [AppComponent]

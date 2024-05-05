@@ -36,7 +36,8 @@ export class CubeService implements OnDestroy {
     private pivot = new THREE.Object3D()
     private activeGroup: THREE.Object3D[] = [];
     private moveQueue: Move[] = []
-    private isMoving = false;
+    private isMoving = false; // Is a move currently performed
+    private isExecuting = false; // Is the Algorithm currently being performed
     private currentMove: Move;
     private currentTween: TWEEN.Tween<any>;
 
@@ -48,6 +49,9 @@ export class CubeService implements OnDestroy {
     private currentAlgorithmSource = new Subject<Algorithm>();
     public currentAlgorithmString$ = this.currentAlgorithmSource.asObservable();
 
+    private currentMoveSource = new Subject<Move>();
+    public currentMove$ = this.currentMoveSource.asObservable();
+
     private focusModeSource = new Subject<boolean>();
     public focusMode$ = this.focusModeSource.asObservable();
 
@@ -55,12 +59,10 @@ export class CubeService implements OnDestroy {
         this.currentAlgorithmString$.subscribe(alg => {
             this.currentAlgorithm = alg;
             this.reset();
-            this.startExecution();
         });
         this.focusMode$.subscribe(b => {
             this.focusMode = b;
             this.reset();
-            this.startExecution();
         });
     }
 
@@ -73,19 +75,25 @@ export class CubeService implements OnDestroy {
         }
     }
 
-    public pushNewAlgorithm(alg: Algorithm) {
+    public setAlgorithm(alg: Algorithm) {
         this.currentAlgorithmSource.next(alg);
     }
 
-    public updateFocusMode(b: boolean) {
+    public setFocusMode(b: boolean) {
         this.focusModeSource.next(b);
     }
 
-    private reset() {
+    public init(canvas: ElementRef<HTMLCanvasElement>) {
+        this.createScene(canvas);
+        this.animate();
+    }
+
+    public reset() {
         this.currentTween?.stop();
         TWEEN.removeAll();
 
         this.isMoving = false;
+        this.isExecuting = false;
         this.activeGroup = [];
         this.scene.remove(this.pivot);
         this.pivot.clear();
@@ -98,26 +106,26 @@ export class CubeService implements OnDestroy {
         }
 
         this.createCube();
-        this.moveQueue = this.stringToMoves(this.parseAlgorithToString(this.currentAlgorithm));
+        this.moveQueue = this.currentAlgorithm.getMoves();
     }
 
     public stopExecution() {
-        this.isMoving = false;
+        this.isExecuting = false;
     }
 
-    public startExecution() {
-        this.reset();
+    public continueExecution() {
+        this.isExecuting = true;
         this.startMove();
     }
 
-    public render(): void {
+    private render(): void {
         this.controls.update();
         TWEEN.update();
         this.renderer.render(this.scene, this.camera);
         this.frameId = requestAnimationFrame(() => { this.render(); });
     }
 
-    public animate(): void {
+    private animate(): void {
         // We have to run this outside angular zones,
         // because it could trigger heavy changeDetection cycles.
         this.ngZone.runOutsideAngular(() => {
@@ -132,7 +140,7 @@ export class CubeService implements OnDestroy {
         });
     }
 
-    public resize(): void {
+    private resize(): void {
         const width = window.innerWidth;
         const height = window.innerHeight;
 
@@ -142,7 +150,7 @@ export class CubeService implements OnDestroy {
         this.renderer.setSize(width, height);
     }
 
-    public createScene(canvas: ElementRef<HTMLCanvasElement>): void {
+    private createScene(canvas: ElementRef<HTMLCanvasElement>): void {
         // The first step is to get the reference of the canvas element from our HTML document
         this.canvas = canvas.nativeElement;
 
@@ -151,6 +159,7 @@ export class CubeService implements OnDestroy {
             alpha: true,    // transparent background
             antialias: true // smooth edges
         });
+
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         // create the scene
         this.scene = new THREE.Scene();
@@ -169,12 +178,9 @@ export class CubeService implements OnDestroy {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
 
         this.createCube();
-        this.moveQueue.push({ moveType: "z", direction: 1, wide: false, double: false })
-        // this.moveQueue.push({ moveType: "R", direction: 1, wide: false, double: false })
-        this.startMove()
     }
 
-    public createCube(): void {
+    private createCube(): void {
         // Create pieces
         for (let x = 0; x < 3; ++x) {
             for (let y = 0; y < 3; ++y) {
@@ -257,7 +263,8 @@ export class CubeService implements OnDestroy {
         return Math.abs(a - b) <= d;
     }
 
-    public setActiveGroup(move: Move): void {
+    // Selects the correct pieces for each move
+    private setActiveGroup(move: Move): void {
         this.activeGroup = [];
         switch (move.moveType) {
             case "x":
@@ -304,32 +311,35 @@ export class CubeService implements OnDestroy {
     }
 
     private startMove(): void {
-        let move = this.moveQueue.shift();
-        if (move) {
-            console.log({ move })
-            if (!this.isMoving) {
-                this.isMoving = true;
-                this.currentMove = move;
+        if (!this.isExecuting) return;
+        if (this.moveQueue.length == 0) {
+            this.isExecuting = false;
+            return;
+        }
+        if (!this.isMoving) {
+            let move = this.moveQueue.shift();
+            this.currentMoveSource.next(move);
+            this.isMoving = true;
+            this.currentMove = move;
 
-                this.setActiveGroup(this.currentMove);
-                this.pivot.rotation.set(0, 0, 0);
-                this.pivot.updateMatrixWorld();
-                this.scene.add(this.pivot);
+            this.setActiveGroup(this.currentMove);
+            this.pivot.rotation.set(0, 0, 0);
+            this.pivot.updateMatrixWorld();
+            this.scene.add(this.pivot);
 
-                for (let piece of this.activeGroup) {
-                    this.scene.remove(piece)
-                    this.pivot.add(piece);
-                }
-
-                let xyz = MoveType[this.currentMove.moveType];
-                let rotationAngle = (this.currentMove.double ? Math.PI : Math.PI / 2) * this.currentMove.direction * MoveDirectionCorrection[this.currentMove.moveType];
-                let target = {}; target[xyz] = rotationAngle;
-                this.currentTween = new TWEEN.Tween(this.pivot.rotation).to(target, this.moveRotationTime)
-                    .easing(TWEEN.Easing.Quadratic.InOut)
-                    .onComplete(() => this.completeMove())
-                    .start();
-
+            for (let piece of this.activeGroup) {
+                this.scene.remove(piece)
+                this.pivot.add(piece);
             }
+
+            let xyz = MoveType[this.currentMove.moveType];
+            let rotationAngle = (this.currentMove.double ? Math.PI : Math.PI / 2) * this.currentMove.direction * MoveDirectionCorrection[this.currentMove.moveType];
+            let target = {}; target[xyz] = rotationAngle;
+            this.currentTween = new TWEEN.Tween(this.pivot.rotation).to(target, this.moveRotationTime)
+                .easing(TWEEN.Easing.Quadratic.InOut)
+                .onComplete(() => this.completeMove())
+                .start();
+
         }
     }
 
@@ -348,65 +358,5 @@ export class CubeService implements OnDestroy {
             this.scene.add(piece);
         }
         this.startMove();
-    }
-
-
-    public parseAlgorithToString(alg: Algorithm): string {
-        let setup = alg.parts.filter(p => p.name == "setup").length > 0 ? alg.parts.filter(p => p.name == "setup")[0].algString : "";
-        let ii1 = alg.parts.filter(p => p.name != "setup")[0].algString;
-        let ii2 = alg.parts.filter(p => p.name != "setup")[1].algString;
-        return setup + " " + ii1 + " " + ii2 + " " + this.reverseAlgorithm(ii1) + " " + this.reverseAlgorithm(ii2) + " " + this.reverseAlgorithm(setup);
-    }
-
-    public bldNotationToAlgorithm(name: string, bldNotationString: string): Algorithm {
-        let parsedAlg = new Algorithm();
-        parsedAlg.name = name;
-        // Losely check format
-        if (bldNotationString.substr(0, 1) != "[" || bldNotationString.slice(-1) != "]") {
-            console.error("Illegal bldNotationString")
-            return null;
-        }
-        // Remove [] 
-        bldNotationString = bldNotationString.substr(1, bldNotationString.length - 2)
-        let insertInterChange = bldNotationString.replace("[", "").replace("]", "").split(",");
-        if (bldNotationString.includes(":")) {
-            parsedAlg.parts.push({
-                name: "setup",
-                algString: bldNotationString.split(":")[0].trim()
-            });
-            insertInterChange = bldNotationString.split(":")[1].replace("[", "").replace("]", "").split(",");
-        }
-        parsedAlg.parts.push({
-            name: insertInterChange[0].length < insertInterChange[1].length ? "interchange" : "insert",
-            algString: insertInterChange[0].trim()
-        });
-        parsedAlg.parts.push({
-            name: insertInterChange[1].length < insertInterChange[0].length ? "interchange" : "insert",
-            algString: insertInterChange[1].trim()
-        });
-        return parsedAlg;
-    }
-
-    public reverseAlgorithm(alg: string): string {
-        return alg.split(" ").map(t => {
-            if (t.includes("2")) return t
-            if (t.includes("'"))
-                return t.replace("'", "");
-            return t + "'";
-        }).reverse().join(" ");
-    }
-
-    public stringToMoves(s: string): any[] {
-        return s.split(" ").map(t => this.tokenToMove(t))
-    }
-
-    private tokenToMove(token: string) {
-        console.log(token)
-        return {
-            moveType: token.substr(0, 1),
-            direction: token.includes("'") ? -1 : 1,
-            wide: token.toLowerCase().includes("w"),
-            double: token.toLowerCase().includes("2"),
-        }
     }
 }
