@@ -1,21 +1,21 @@
-<div class="algorithm-wrapper">
-    <p class="algorithm">{{ selectedAlgorithmString }}</p>
-    <p class="part"> {{ currentPart == null ? "Part" : currentPart }}</p>
+<div class="mx-4 py-2">
+    <p class="text-center text-3xl py-2">{{ selectedAlgorithmString }}</p>
+    <p class="text-center text-xl"> {{ currentPart == null ? "Part" : currentPart }}</p>
 </div>
 
-<div class="selector-wrapper">
-    <div class="input-group">
+<div class="mx-4">
+    <div class="flex justify-center">
         <select [(ngModel)]="selectedAlgorithmName" (change)="onAlgorithmChange($event)">
             <option value="" disabled>Select an option</option>
             <option *ngFor="let option of options" [value]="option.name">{{ option.name }}</option>
         </select>
-        <button class="btn btn-start" (click)="reset()">
+        <button class="" (click)="reset()">
             <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none"
                 stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M2.5 2v6h6M2.66 15.57a10 10 0 1 0 .57-8.38" />
             </svg>
         </button>
-        <button class="btn btn-toggle" (click)="toggleExecution()">
+        <button class="" (click)="toggleExecution()">
             <svg *ngIf="!isExecuting" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24"
                 fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polygon points="5 3 19 12 5 21 5 3"></polygon>
@@ -26,6 +26,15 @@
                 <rect x="14" y="4" width="4" height="16"></rect>
             </svg>
         </button>
-        <button class="btn btn-toggle" (click)="toggleFocusMode()"><i class="fa-solid fa-play"></i></button>
+        <button>
+            <svg (click)="toggleFocusMode()" xmlns="http://www.w3.org/2000/svg" width="28" height="28"
+                viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+        </button>
     </div>
 </div>

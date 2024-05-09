@@ -15,6 +15,7 @@ import { Move, Algorithm, MoveType, MoveDirectionCorrection } from 'app/util';
 export class CubeService implements OnDestroy {
     // Three.js options
     private canvas: HTMLCanvasElement;
+    private wrapper: HTMLCanvasElement;
     private renderer: THREE.WebGLRenderer;
     private camera: THREE.PerspectiveCamera;
     private scene: THREE.Scene;
@@ -83,7 +84,8 @@ export class CubeService implements OnDestroy {
         this.focusModeSource.next(b);
     }
 
-    public init(canvas: ElementRef<HTMLCanvasElement>) {
+    public init(canvas: ElementRef<HTMLCanvasElement>, wrapper: ElementRef<HTMLCanvasElement>) {
+        this.wrapper = wrapper.nativeElement;
         this.createScene(canvas);
         this.animate();
     }
@@ -141,8 +143,8 @@ export class CubeService implements OnDestroy {
     }
 
     private resize(): void {
-        const width = window.innerWidth;
-        const height = window.innerHeight;
+        const width = this.wrapper.getBoundingClientRect().width;
+        const height = this.wrapper.getBoundingClientRect().height;
 
         this.camera.aspect = width / height;
         this.camera.updateProjectionMatrix();
