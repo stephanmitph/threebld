@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ElementRef, Injectable, Input, NgZone, OnChanges, OnDestroy, SimpleChanges } from '@angular/core';
+import { AfterViewInit, ElementRef, Injectable, Input, NgZone, OnChanges, OnDestroy, SimpleChanges } from '@angular/core';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
 import { RoundedPlaneGeometry } from './RoundedPlaneGeometry.js';
@@ -142,7 +142,7 @@ export class CubeService implements OnDestroy {
         });
     }
 
-    private resize(): void {
+    public resize(): void {
         const width = this.wrapper.getBoundingClientRect().width;
         const height = this.wrapper.getBoundingClientRect().height;
 
@@ -166,7 +166,7 @@ export class CubeService implements OnDestroy {
         // create the scene
         this.scene = new THREE.Scene();
         this.camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 0.1, 10000);
-        this.camera.position.set(40, 40, 40);
+        this.camera.position.set(29, 29, 29);
         this.camera.lookAt(new THREE.Vector3(0, 0, 0))
         this.scene.add(this.camera);
 
@@ -347,6 +347,7 @@ export class CubeService implements OnDestroy {
 
     private completeMove(): void {
         this.isMoving = false;
+        this.isExecuting = false;
         this.currentMove = undefined;
 
         this.pivot.updateMatrixWorld(true);

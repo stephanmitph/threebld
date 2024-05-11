@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { CubeService } from './cube.service';
 
 @Component({
@@ -6,7 +6,7 @@ import { CubeService } from './cube.service';
     templateUrl: './cube.component.html',
     styleUrls: ['./cube.component.scss']
 })
-export class CubeComponent implements OnInit {
+export class CubeComponent implements OnInit, AfterViewInit {
 
     @ViewChild('rendererCanvas', { static: true })
     public rendererCanvas: ElementRef<HTMLCanvasElement>;
@@ -14,10 +14,13 @@ export class CubeComponent implements OnInit {
     @ViewChild('wrapper', { static: true })
     public wrapper: ElementRef<HTMLCanvasElement>;
 
-    public constructor(private engServ: CubeService) {
+    public constructor(private cubeService: CubeService) { }
+
+    ngAfterViewInit(): void {
+        this.cubeService.resize();
     }
 
     public ngOnInit(): void {
-        this.engServ.init(this.rendererCanvas, this.wrapper);
+        this.cubeService.init(this.rendererCanvas, this.wrapper);
     }
 }
