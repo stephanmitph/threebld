@@ -347,7 +347,6 @@ export class CubeService implements OnDestroy {
 
     private completeMove(): void {
         this.isMoving = false;
-        this.isExecuting = false;
         this.currentMove = undefined;
 
         this.pivot.updateMatrixWorld(true);

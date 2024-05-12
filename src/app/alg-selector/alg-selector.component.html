@@ -1,15 +1,13 @@
-<div class="container mx-auto py-2">
-    <p class="text-center text-3xl py-2">{{ selectedAlgorithmString }}</p>
-    <p class="text-center text-xl"> {{ currentPart == null ? "Part" : currentPart }}</p>
-</div>
+<p>{{ selectedAlgorithmString }}</p>
+<p> {{ currentPart == null ? "Part" : currentPart }}</p>
 
-<div class="container mx-auto">
-    <div class="flex justify-center">
-        <select class="" [(ngModel)]="selectedAlgorithmName" (change)="onAlgorithmChange($event)">
+<div class="input-wrapper">
+    <div class="input-group">
+        <select [(ngModel)]=" selectedAlgorithmName" (change)="onAlgorithmChange($event)">
             <option value="" disabled>Select an option</option>
             <option *ngFor="let option of options" [value]="option.name">{{ option.name }}</option>
         </select>
-        <button class="" (click)="reset()">
+        <button (click)="reset()">
             <i>
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                     stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -17,21 +15,18 @@
                 </svg>
             </i>
         </button>
-        <button class="" (click)="toggleExecution()">
-
-            <i>
-                <svg *ngIf="!isExecuting" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                    fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                </svg>
-                <svg *ngIf="isExecuting" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                    fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="6" y="4" width="4" height="16"></rect>
-                    <rect x="14" y="4" width="4" height="16"></rect>
-                </svg>
-            </i>
+        <button (click)="toggleExecution()">
+            <svg *ngIf="!isExecuting" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+            <svg *ngIf="isExecuting" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="6" y="4" width="4" height="16"></rect>
+                <rect x="14" y="4" width="4" height="16"></rect>
+            </svg>
         </button>
-        <button>
+        <button class="last-input">
             <svg (click)="toggleFocusMode()" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                 viewBox="0 0 24 24" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round"
                 stroke-linejoin="round">
