@@ -1,20 +1,23 @@
+.wrapper {
+    height: 20%;
+}
+
 p {
     text-align: center;
     font-size: 2rem;
 }
 
 .input-wrapper {
-    width: 100%;
     display: flex;
     justify-content: center;
+    padding: 1rem 2rem;
 }
 
 .input-group {
     flex-grow: 1;
     display: flex;
     justify-content: center;
-    height: 2.5rem;
-    padding: 1rem 2rem;
+    height: 3rem;
 }
 
 .input-group>select {
@@ -22,6 +25,7 @@ p {
     flex-grow: 1;
     padding: 0.5rem;
     max-width: 300px;
+    font-size: 1.5rem;
     border-top-left-radius: 0.5rem;
     border-bottom-left-radius: 0.5rem;
     border-right: none;
@@ -31,7 +35,7 @@ p {
     cursor: pointer;
     background: transparent;
     border: 1px solid gray;
-    width: 2.5rem;
+    width: 3rem;
     border-right: none;
 }
 

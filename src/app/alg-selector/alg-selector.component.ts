@@ -24,8 +24,11 @@ export class AlgSelectorComponent implements OnInit {
     ngOnInit(): void {
         this.onAlgorithmChange(null);
         this.cubeService.currentMove$.subscribe((currentMove: Move) => {
-            console.log(currentMove)
             this.ngZone.run(() => {
+                if (currentMove == null) {
+                    this.isExecuting = false;
+                    return;
+                }
                 this.currentPart = currentMove.partName;
             });
         })
@@ -35,6 +38,7 @@ export class AlgSelectorComponent implements OnInit {
         let alg = this.options.filter(c => c.name == this.selectedAlgorithmName)[0]
         this.selectedAlgorithmString = alg.string;
         this.cubeService.setAlgorithm(alg);
+        this.isExecuting = false;
     }
 
     toggleFocusMode(): void {

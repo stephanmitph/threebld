@@ -116,6 +116,9 @@ export class CubeService implements OnDestroy {
     }
 
     public continueExecution() {
+        if (this.moveQueue.length == 0) {
+            this.reset();
+        }
         this.isExecuting = true;
         this.startMove();
     }
@@ -316,6 +319,7 @@ export class CubeService implements OnDestroy {
         if (!this.isExecuting) return;
         if (this.moveQueue.length == 0) {
             this.isExecuting = false;
+            this.currentMoveSource.next(null);
             return;
         }
         if (!this.isMoving) {

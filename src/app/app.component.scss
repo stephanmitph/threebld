@@ -1,1 +1,30 @@
+main {
+    height: calc(100vh - 5rem);
+}
 
+nav {
+    height: 4rem;
+    padding: 0.5rem;
+    display: flex;
+
+    justify-content: space-between;
+    align-items: center;
+}
+
+.nav-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+nav a {
+    font-size: 2rem;
+    line-height: 1;
+    text-decoration: none;
+    color: black;
+}
+
+.nav-logo img {
+    width: 3rem;
+    margin-right: 0.5rem;
+}
